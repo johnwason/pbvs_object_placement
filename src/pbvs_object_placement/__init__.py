@@ -1,4 +1,4 @@
 from __future__ import absolute_import
 
-from .arm_composites_manufacturing_placement import PlacementController
+from .pbvs_object_placement import PBVSPlacementController
 
