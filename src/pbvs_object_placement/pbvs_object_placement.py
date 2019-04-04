@@ -135,6 +135,8 @@ class PBVSPlacementController(object):
         
         self.abort_force = unpack_wrench(params_msg.abort_force)
         self.placement_force = unpack_wrench(params_msg.placement_force)
+        
+        self._aborted=False
        
     def compute_step_gripper_target_pose(self, img, Kp):
         
@@ -276,6 +278,9 @@ class PBVSPlacementController(object):
             if i > max_iters:
                 raise Exception("Placement controller timeout")
             
+            if self._aborted:
+                raise Exception("Operation aborted")
+            
             img = self.receive_image()
             
             target_pose, err = self.compute_step_gripper_target_pose(img, kp)
@@ -286,7 +291,10 @@ class PBVSPlacementController(object):
             if err_p < tols_p and err_r < tols_r:
                 return err_p, err_r
             
-            plan = self.planner.trajopt_plan(target_pose, json_config_name = "panel_pickup")            
+            plan = self.planner.trajopt_plan(target_pose, json_config_name = "panel_pickup")
+            
+            if self._aborted:
+                raise Exception("Operation aborted")            
             self.controller_commander.set_controller_mode(self.controller_commander.MODE_AUTO_TRAJECTORY,0.7,[], abort_force)
             self.controller_commander.execute_trajectory(plan)
             i+=1
@@ -300,7 +308,9 @@ class PBVSPlacementController(object):
     def pbvs_stage3(self):
         return self.pbvs(self.stage3_kp, self.stage3_tol_p, self.stage3_tol_r, self.abort_force)
      
-
+    def abort(self):
+        self._aborted=True
+        self.controller_commander.stop_trajectory()
 
 
 if __name__ == '__main__':
