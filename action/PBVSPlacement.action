@@ -1,14 +1,17 @@
 #goal definition
-string camera_name
-geometry_msgs/TransformStamped target_transform_name
+
+geometry_msgs/TransformStamped desired_transform
 
 float64[6] stage1_kp
 float64[6] stage2_kp
 float64[6] stage3_kp
 
-float64[6] stage1_tol
-float64[6] stage2_tol
-float64[6] stage3_tol
+float64 stage1_tol_p
+float64 stage1_tol_r
+float64 stage2_tol_p
+float64 stage2_tol_r
+float64 stage3_tol_p
+float64 stage3_tol_r
 
 float64 stage2_z_offset
 

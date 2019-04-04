@@ -50,7 +50,7 @@
   <!--   <doc_depend>doxygen</doc_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>actionlib</build_depend>
-  <build_depend>general_robotics_toolbox</build_depend>
+  <build_depend>rpi_general_robotics_toolbox</build_depend>
   <build_depend>geometry_msgs</build_depend>
   <build_depend>industrial_payload_manager</build_depend>
   <build_depend>rospy</build_depend>
@@ -58,7 +58,7 @@
   <build_depend>sensor_msgs</build_depend>
   <build_depend>std_srvs</build_depend>
   <build_export_depend>actionlib</build_export_depend>
-  <build_export_depend>general_robotics_toolbox</build_export_depend>
+  <build_export_depend>rpi_general_robotics_toolbox</build_export_depend>
   <build_export_depend>geometry_msgs</build_export_depend>
   <build_export_depend>industrial_payload_manager</build_export_depend>
   <build_export_depend>rospy</build_export_depend>
@@ -66,7 +66,7 @@
   <build_export_depend>sensor_msgs</build_export_depend>
   <build_export_depend>std_srvs</build_export_depend>
   <exec_depend>actionlib</exec_depend>
-  <exec_depend>general_robotics_toolbox</exec_depend>
+  <exec_depend>rpi_general_robotics_toolbox</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>industrial_payload_manager</exec_depend>
   <exec_depend>rospy</exec_depend>
