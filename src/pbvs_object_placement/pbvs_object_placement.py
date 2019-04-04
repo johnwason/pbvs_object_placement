@@ -35,8 +35,7 @@ def main():
     urdf_xml_string=rospy.get_param("robot_description")
     srdf_xml_string=rospy.get_param("robot_description_semantic")
     controller_commander=ControllerCommander()
-    
-        
+            
     transform_fname = sys.argv[1]
     camera_image_topic = sys.argv[2]
     camera_trigger_topic = sys.argv[3]
@@ -45,6 +44,7 @@ def main():
     controller = PBVSPlacementController(controller_commander, urdf_xml_string, srdf_xml_string, \
                                camera_image_topic, camera_trigger_topic, camera_info_topic)
     
+    controller.controller_commander.set_controller_mode(controller.controller_commander.MODE_HALT,0.7,[], [])
     desired_transform_msg=TransformStamped()
         
     with open(transform_fname,'r') as f:
@@ -55,18 +55,18 @@ def main():
     goal = PBVSPlacementGoal()
     goal.desired_transform = desired_transform_msg
     
-    goal.stage1_tol_p = 0.1
+    goal.stage1_tol_p = 0.05
     goal.stage1_tol_r = np.deg2rad(0.25)
-    goal.stage2_tol_p = 0.1
+    goal.stage2_tol_p = 0.05
     goal.stage2_tol_r = np.deg2rad(0.25)
     goal.stage3_tol_p = 0.001
     goal.stage3_tol_r = np.deg2rad(0.05)
     
     goal.stage1_kp = np.array([0.7] * 6)
     goal.stage2_kp = np.array([0.7] * 6)
-    goal.stage3_kp = np.array([0.2] * 6)
+    goal.stage3_kp = np.array([0.5] * 6)
     
-    goal.stage2_z_offset = 0.1
+    goal.stage2_z_offset = 0.05
     
     goal.abort_force = Wrench(Vector3(500,500,500), Vector3(100,100,100))
     goal.placement_force = Wrench(Vector3(0,0,300), Vector3(0,0,0))
@@ -79,6 +79,8 @@ def main():
     dx=np.array([10000]*6)
     
     controller.pbvs_stage1()
+    controller.pbvs_stage2()
+    controller.pbvs_stage3()
     
     
     
@@ -138,9 +140,14 @@ class PBVSPlacementController(object):
         
         self._aborted=False
        
-    def compute_step_gripper_target_pose(self, img, Kp):
+    def compute_step_gripper_target_pose(self, img, Kp, no_z = False, z_offset = 0):
         
         fixed_marker_transform, error_transform = self.compute_error_transform(img)
+        
+        if no_z:
+            error_transform.p[2] = 0
+        else:
+            error_transform.p[2] -= z_offset
         
         gripper_to_camera_tf=self.tf_listener.lookupTransform("vacuum_gripper_tool", "gripper_camera_2", rospy.Time(0))
         
@@ -257,6 +264,7 @@ class PBVSPlacementController(object):
         retval, rvec, tvec = cv2.aruco.estimatePoseBoard(corners, ids, board, camMatrix, distCoeffs)
         
         if (retval <= 0):
+            cv2.waitKey()
             raise Exception("Invalid image")
         
         Ra, b = cv2.Rodrigues(rvec)
@@ -270,7 +278,7 @@ class PBVSPlacementController(object):
         
         return a_pose
     
-    def pbvs(self, kp, tols_p, tols_r, abort_force, max_iters = 25):
+    def pbvs(self, kp, tols_p, tols_r, abort_force, max_iters = 25, no_z = False, z_offset = 0):
     
         i=0
         while True:
@@ -283,9 +291,11 @@ class PBVSPlacementController(object):
             
             img = self.receive_image()
             
-            target_pose, err = self.compute_step_gripper_target_pose(img, kp)
-            
+            target_pose, err = self.compute_step_gripper_target_pose(img, kp, no_z = no_z, z_offset = z_offset)
+                        
             err_p = np.linalg.norm(err.p)
+            if no_z:
+                err_p = np.linalg.norm(err.p[0:2])
             err_r = np.abs(rox.R2rot(err.R)[1]) 
             
             if err_p < tols_p and err_r < tols_r:
@@ -300,10 +310,10 @@ class PBVSPlacementController(object):
             i+=1
     
     def pbvs_stage1(self):
-        return self.pbvs(self.stage1_kp, self.stage1_tol_p, self.stage1_tol_r, self.abort_force)
+        return self.pbvs(self.stage1_kp, self.stage1_tol_p, self.stage1_tol_r, self.abort_force, no_z = True)
         
     def pbvs_stage2(self):
-        return self.pbvs(self.stage2_kp, self.stage2_tol_p, self.stage2_tol_r, self.abort_force)
+        return self.pbvs(self.stage2_kp, self.stage2_tol_p, self.stage2_tol_r, self.abort_force, z_offset = self.stage2_z_offset)
      
     def pbvs_stage3(self):
         return self.pbvs(self.stage3_kp, self.stage3_tol_p, self.stage3_tol_r, self.abort_force)
