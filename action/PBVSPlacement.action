@@ -1,0 +1,25 @@
+#goal definition
+string camera_name
+geometry_msgs/TransformStamped target_transform_name
+
+float64[6] stage1_kp
+float64[6] stage2_kp
+float64[6] stage3_kp
+
+float64[6] stage1_tol
+float64[6] stage2_tol
+float64[6] stage3_tol
+
+float64 stage2_z_offset
+
+geometry_msgs/Wrench abort_force
+geometry_msgs/Wrench placement_force
+float64[6] force_ki
+
+---
+#result definition
+
+string error_msg
+---
+#feedback
+
