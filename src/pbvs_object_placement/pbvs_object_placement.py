@@ -56,9 +56,9 @@ def main():
     goal.desired_transform = desired_transform_msg
     
     goal.stage1_tol_p = 0.05
-    goal.stage1_tol_r = np.deg2rad(0.25)
+    goal.stage1_tol_r = np.deg2rad(1)
     goal.stage2_tol_p = 0.05
-    goal.stage2_tol_r = np.deg2rad(0.25)
+    goal.stage2_tol_r = np.deg2rad(1)
     goal.stage3_tol_p = 0.001
     goal.stage3_tol_r = np.deg2rad(0.05)
     
@@ -176,7 +176,7 @@ class PBVSPlacementController(object):
         #print world_to_vacuum_gripper_tool_tf
         #print ret
         
-        print error_transform
+        #print error_transform
         
         return ret, error_transform
     
@@ -279,7 +279,7 @@ class PBVSPlacementController(object):
         return a_pose
     
     def pbvs(self, kp, tols_p, tols_r, abort_force, max_iters = 25, no_z = False, z_offset = 0):
-    
+
         i=0
         while True:
             
@@ -310,12 +310,15 @@ class PBVSPlacementController(object):
             i+=1
     
     def pbvs_stage1(self):
+        print "stage 1"
         return self.pbvs(self.stage1_kp, self.stage1_tol_p, self.stage1_tol_r, self.abort_force, no_z = True)
         
     def pbvs_stage2(self):
+        print "stage 2"
         return self.pbvs(self.stage2_kp, self.stage2_tol_p, self.stage2_tol_r, self.abort_force, z_offset = self.stage2_z_offset)
      
     def pbvs_stage3(self):
+        print "stage 3"
         return self.pbvs(self.stage3_kp, self.stage3_tol_p, self.stage3_tol_r, self.abort_force)
      
     def abort(self):
