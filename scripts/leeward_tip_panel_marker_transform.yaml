@@ -1,0 +1,18 @@
+header: 
+  seq: 0
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: "leeward_mid_panel_marker_1"
+child_frame_id: "leeward_tip_panel_marker_2"
+transform: 
+  translation: 
+    x: -0.06461690170398952
+    y: -0.12283546516683957
+    z: -0.003098946236811728
+  rotation: 
+    x: 0.001363635202955278
+    y: -0.021136817107640437
+    z: -0.000514332387976826
+    w: 0.9997755302685629
+

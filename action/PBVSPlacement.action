@@ -1,7 +1,7 @@
 #goal definition
 
 geometry_msgs/TransformStamped desired_transform
-
+geometry_msgs/TransformStamped desired_camera2_transform
 float64[6] stage1_kp
 float64[6] stage2_kp
 float64[6] stage3_kp
