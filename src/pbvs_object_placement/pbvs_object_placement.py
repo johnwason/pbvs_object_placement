@@ -68,7 +68,7 @@ def main():
     goal.stage2_tol_p = 0.05
     goal.stage2_tol_r = np.deg2rad(1)
     goal.stage3_tol_p = 0.001
-    goal.stage3_tol_r = np.deg2rad(0.05)
+    goal.stage3_tol_r = np.deg2rad(0.2)
     
     goal.stage1_kp = np.array([0.90] * 6)
     goal.stage2_kp = np.array([0.90] * 6)
@@ -88,9 +88,13 @@ def main():
     
     
     tic = time.time()
+    rospy.loginfo("started")
     controller.pbvs_stage1()
+    rospy.loginfo("finished stage 1")
     controller.pbvs_stage2()
+    rospy.loginfo("finished stage 2")
     controller.pbvs_jacobian()
+    rospy.loginfo("finished stage 3")
     print "Time:", time.time()-tic
     #controller.test()    
     
@@ -117,8 +121,8 @@ class PBVSPlacementController(object):
         self.ft_flag = False
         self.FTdata_0 = self.FTdata           
         # Compliance controller parameters
-        self.F_d_set1 = -150
-        self.F_d_set2 = -250
+        self.F_d_set1 = -120
+        self.F_d_set2 = -220
         self.Kc = 0.000025
         
         self.client = actionlib.SimpleActionClient("joint_trajectory_action", FollowJointTrajectoryAction) 
@@ -155,6 +159,7 @@ class PBVSPlacementController(object):
         self.stage1_kp = params_msg.stage1_kp
         self.stage2_kp = params_msg.stage2_kp
         self.stage3_kp = params_msg.stage3_kp
+        self.K_pbvs=self.stage3_kp
         
         self.stage2_z_offset = params_msg.stage2_z_offset
         self.force_ki = params_msg.force_ki
@@ -338,11 +343,11 @@ class PBVSPlacementController(object):
             i+=1
     
     def pbvs_stage1(self):
-        print "stage 1"
+        rospy.loginfo("stage 1 PBVS")
         return self.pbvs(self.stage1_kp, self.stage1_tol_p, self.stage1_tol_r, self.abort_force, no_z = True)
         
     def pbvs_stage2(self):
-        print "stage 2"
+        rospy.loginfo("stage 2 PBVS")
         return self.pbvs(self.stage2_kp, self.stage2_tol_p, self.stage2_tol_r, self.abort_force, z_offset = self.stage2_z_offset)
      
     def pbvs_stage3(self):
@@ -407,6 +412,7 @@ class PBVSPlacementController(object):
         print "Test3:",error_transform
         
     def pbvs_jacobian(self):
+        rospy.loginfo("stage 3 PBVS")
         self.controller_commander.set_controller_mode(self.controller_commander.MODE_AUTO_TRAJECTORY, 0.7, [], [])
         tvec_err = [100,100,100]
         rvec_err = [100,100,100]
@@ -423,7 +429,7 @@ class PBVSPlacementController(object):
         time_data = []
         #TODO: should listen to stage_3_tol_r not 1 degree
         
-        while(error_transform.p[2]>0.01 or np.linalg.norm([error_transform.p[0],error_transform.p[1]]) > self.stage3_tol_p or np.linalg.norm(rox.R2rpy(error_transform.R)) > np.deg2rad(1)):
+        while(error_transform.p[2]>0.01 or np.linalg.norm([error_transform.p[0],error_transform.p[1]]) > self.stage3_tol_p or np.linalg.norm(rox.R2rpy(error_transform.R)) > self.stage3_tol_r):
             
             img = self.receive_image()
 
@@ -431,17 +437,14 @@ class PBVSPlacementController(object):
             #print self.desired_transform.R.T, -fixed_marker_transform.R.dot(self.desired_transform.p)
 
             R_desired_cam = fixed_marker_transform.R.dot(self.desired_transform.R)
-            R_desired_cam = R_desired_cam.dot(fixed_marker_transform.R.transpose())
             t_desired_cam = -fixed_marker_transform.R.dot(self.desired_transform.p)
             
             # Compute error directly in the camera frame
-            observed_R_difference = np.dot(payload_marker_transform.R, fixed_marker_transform.R.transpose())            
-            k, theta = rox.R2rot(np.dot(observed_R_difference , R_desired_cam.transpose()))#np.array(rox.R2rpy(rvec_err1))
+            k, theta = rox.R2rot(np.dot(payload_marker_transform.R , R_desired_cam.transpose()))#np.array(rox.R2rpy(rvec_err1))
             rvec_err1 = k*theta
 
             observed_tvec_difference = fixed_marker_transform.p - payload_marker_transform.p
             tvec_err1 = -fixed_marker_transform.R.dot(self.desired_transform.p) - observed_tvec_difference 
-            #print 'SPOT: ',tvec_err1, rvec_err1
             # Map error to the robot spatial velocity
             world_to_camera_tf = self.tf_listener.lookupTransform("world", "gripper_camera_2", rospy.Time(0))
             camera_to_link6_tf = self.tf_listener.lookupTransform("gripper_camera_2","link_6", rospy.Time(0))
@@ -457,7 +460,7 @@ class PBVSPlacementController(object):
             rvec_err = np.clip(rvec_err, -np.deg2rad(5), np.deg2rad(5))
                 
             if tvec_err[2] <0.01:
-                rospy.loginfo("Only Compliance Control")
+                rospy.loginfo("Only Compliance Control.")
                 tvec_err[2] = 0
             
             rot_err = rox.R2rpy(error_transform.R)
@@ -468,15 +471,16 @@ class PBVSPlacementController(object):
             dx = -np.concatenate((rvec_err, tvec_err))*self.K_pbvs
 
 
-            print np.linalg.norm([error_transform.p[0],error_transform.p[1]])
-            print np.linalg.norm(rox.R2rpy(error_transform.R))
+            print (error_transform.p[2]>0.01) , (np.linalg.norm([error_transform.p[0],error_transform.p[1]]) > self.stage3_tol_p), (np.linalg.norm(rox.R2rpy(error_transform.R)) > self.stage3_tol_r)
+            print np.linalg.norm([error_transform.p[0],error_transform.p[1]]) , self.stage3_tol_p
+            print np.linalg.norm(rox.R2rpy(error_transform.R)),self.stage3_tol_r
 
             # Compliance Force Control
             if(not self.ft_flag):
-                raise Exception("havent reached FT callback")
-            # Compute the exteranl force    
+                raise Exception("haven't reached FT callback")
+            # Compute the external force    
             FTread = self.FTdata - self.FTdata_0  # (F)-(F0)
-            print '================ FT1 =============:', FTread
+            rospy.loginfo('================ FT1 =============:' + str(FTread))
             print '================ FT2 =============:', self.FTdata    
             
             if FTread[-1]> (self.F_d_set1+50):
@@ -486,7 +490,7 @@ class PBVSPlacementController(object):
 
             if (self.FTdata==0).all():
                 rospy.loginfo("FT data overflow")
-                dx[-1] += self.K_pbvs*0.004
+                dx[-1] += self.K_pbvs[5]*0.004
             else:
                 tx_correct = 0
                 if abs(self.FTdata[0])>90:
@@ -499,7 +503,7 @@ class PBVSPlacementController(object):
             
             current_joint_angles = self.controller_commander.get_current_joint_values()
             joints_vel = QP_abbirb6640(np.array(current_joint_angles).reshape(6, 1),np.array(dx))
-            goal = self.trapezoid_gen(np.array(current_joint_angles) + joints_vel.dot(1),np.array(current_joint_angles),0.008,0.008,0.015)#acc,dcc,vmax)
+            goal = self.trapezoid_gen(np.array(current_joint_angles) + joints_vel.dot(1),np.array(current_joint_angles),0.01,0.01,0.015)#acc,dcc,vmax)
 
             print "joints_vel:", joints_vel   
 
@@ -521,7 +525,8 @@ class PBVSPlacementController(object):
         filename_pose = "/home/rpi-cats/Desktop/YC/Data/Panel2_Placement_In_Nest_Pose_"+str(time.time())+".mat"
         scipy.io.savemat(filename_pose, mdict={'FT_data_ori':FT_data_ori, 'FT_data_biased':FT_data_biased, 
         'err_data_p':err_data_p, 'err_data_rpy': err_data_rpy, 'joint_data': joint_data, 'time_data': time_data})
-
+        cv2.destroyWindow("")
+        cv2.destroyWindow("transform")
 
         rospy.loginfo("End  ====================")
         

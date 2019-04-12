@@ -31,6 +31,7 @@ class PlacementControllerServer(object):
             self.controller.set_goal(goal.get_goal())
             self.controller.pbvs_stage1()
             self.controller.pbvs_stage2()
+            self.controller.pbvs_jacobian()
         except Exception as err:
             res = PBVSPlacementResult()
             res.error_msg=str(err)
